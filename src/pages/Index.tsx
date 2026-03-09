@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -8,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import heroImage from "@/assets/hero-face.jpg";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import ParticleBackground from "@/components/ParticleBackground";
+import FeatureModal from "@/components/FeatureModal";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -18,12 +21,48 @@ const fadeUp = {
 };
 
 const features = [
-  { icon: ScanFace, title: "AI Face Detection", desc: "Advanced neural network identifies faces in real-time with 99.7% accuracy" },
-  { icon: Shield, title: "Privacy First", desc: "Student names remain hidden during scanning — only admins see identities" },
-  { icon: Clock, title: "Instant Marking", desc: "Attendance marked in under 2 seconds with timestamp verification" },
-  { icon: Users, title: "Multi-Student", desc: "Register unlimited students with individual face profiles" },
-  { icon: Eye, title: "Anti-Spoofing", desc: "Liveness detection prevents photo and video-based spoofing attacks" },
-  { icon: Database, title: "Attendance Logs", desc: "Complete audit trail with date, time, and verification status" },
+  {
+    icon: ScanFace,
+    title: "AI Face Detection",
+    desc: "Advanced neural network identifies faces in real-time with 99.7% accuracy",
+    howItWorks: "The system uses a convolutional neural network (CNN) trained on thousands of face images. When the camera captures a frame, the model extracts facial landmarks — eye positions, nose bridge, jawline — and creates a unique 128-dimensional face embedding. This embedding is compared against stored profiles using cosine similarity to determine identity.",
+    whyUseful: "Eliminates manual roll calls, prevents proxy attendance, and provides instant verification. The high accuracy ensures students are correctly identified even with minor changes in appearance like glasses or lighting conditions.",
+  },
+  {
+    icon: Shield,
+    title: "Privacy First",
+    desc: "Student names remain hidden during scanning — only admins see identities",
+    howItWorks: "During a face scan, the system only displays a generic 'Attendance Marked Successfully' message. Student identities, names, and roll numbers are encrypted and stored server-side. Only authenticated admin users can access the identity-linked attendance data through the secure dashboard.",
+    whyUseful: "Protects student privacy in shared environments like classrooms. Prevents unauthorized users from tracking attendance of specific individuals, complying with data protection best practices.",
+  },
+  {
+    icon: Clock,
+    title: "Instant Marking",
+    desc: "Attendance marked in under 2 seconds with timestamp verification",
+    howItWorks: "Once a face is captured, the AI pipeline processes it through detection, alignment, and recognition stages in parallel. The optimized model runs inference in under 500ms, and the attendance record is committed with a precise timestamp immediately upon successful verification.",
+    whyUseful: "Saves valuable class time — an entire class of 60 students can complete attendance in under 3 minutes compared to 10+ minutes with traditional methods. The precise timestamps also provide an audit trail.",
+  },
+  {
+    icon: Users,
+    title: "Multi-Student",
+    desc: "Register unlimited students with individual face profiles",
+    howItWorks: "Each student is enrolled by capturing multiple face images at different angles. The system generates a robust face template by averaging these embeddings, creating a reliable reference profile. The database scales efficiently with indexed vector storage for fast lookups.",
+    whyUseful: "Supports departments with large class sizes. The multi-angle enrollment ensures reliable recognition regardless of head position, and the scalable architecture handles growing student databases without performance degradation.",
+  },
+  {
+    icon: Eye,
+    title: "Anti-Spoofing",
+    desc: "Liveness detection prevents photo and video-based spoofing attacks",
+    howItWorks: "The system employs passive liveness detection that analyzes texture patterns, depth cues, and micro-movements in the video feed. It detects printed photos, screen replays, and 3D masks by examining specular reflections and moiré patterns unique to display screens.",
+    whyUseful: "Prevents students from marking attendance using someone else's photo or video. This ensures the integrity of the attendance system and makes it tamper-proof, which is critical for academic record keeping.",
+  },
+  {
+    icon: Database,
+    title: "Attendance Logs",
+    desc: "Complete audit trail with date, time, and verification status",
+    howItWorks: "Every scan event is recorded with a timestamp, verification result, confidence score, and session metadata. Logs are stored in a structured database with date-based indexing, allowing admins to filter, export, and analyze attendance patterns over any time period.",
+    whyUseful: "Provides transparent and verifiable attendance records for academic compliance. Admins can generate reports, identify patterns of absenteeism, and maintain accurate records required by institutional regulations.",
+  },
 ];
 
 const steps = [
@@ -34,14 +73,17 @@ const steps = [
 ];
 
 const Index = () => {
+  const [selectedFeature, setSelectedFeature] = useState<typeof features[0] | null>(null);
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background scroll-smooth">
+      <ParticleBackground />
       <Navbar />
 
       {/* Hero */}
       <section className="relative pt-32 pb-20 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-hero" />
-        <div className="container mx-auto px-6 relative">
+        <div className="container mx-auto px-6 relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <motion.div
               initial={{ opacity: 0, x: -40 }}
@@ -102,7 +144,7 @@ const Index = () => {
       </section>
 
       {/* Features */}
-      <section className="py-20" id="features">
+      <section className="py-20 relative z-10" id="features">
         <div className="container mx-auto px-6">
           <motion.div
             initial="hidden"
@@ -127,21 +169,31 @@ const Index = () => {
                 viewport={{ once: true }}
                 variants={fadeUp}
                 custom={i}
-                className="bg-gradient-card rounded-xl p-6 border border-border hover:border-primary/30 transition-all group"
+                onClick={() => setSelectedFeature(f)}
+                className="bg-gradient-card rounded-xl p-6 border border-border hover:border-primary/50 transition-all duration-300 group cursor-pointer hover:scale-[1.03] hover:shadow-[0_0_30px_hsl(187_92%_52%/0.15)]"
               >
-                <div className="rounded-lg bg-primary/10 p-3 w-fit mb-4 group-hover:glow-primary transition-shadow">
+                <div className="rounded-lg bg-primary/10 p-3 w-fit mb-4 group-hover:glow-primary transition-shadow duration-300">
                   <f.icon className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="font-display text-lg font-semibold text-foreground mb-2">{f.title}</h3>
                 <p className="text-sm text-muted-foreground">{f.desc}</p>
+                <span className="inline-block mt-3 text-xs text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  Click to learn more →
+                </span>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
+      <FeatureModal
+        feature={selectedFeature}
+        open={!!selectedFeature}
+        onClose={() => setSelectedFeature(null)}
+      />
+
       {/* How It Works */}
-      <section className="py-20 bg-card/30">
+      <section className="py-20 bg-card/30 relative z-10">
         <div className="container mx-auto px-6">
           <motion.div
             initial="hidden"
@@ -185,7 +237,7 @@ const Index = () => {
       </section>
 
       {/* Demo */}
-      <section className="py-20" id="demo">
+      <section className="py-20 relative z-10" id="demo">
         <div className="container mx-auto px-6 text-center">
           <motion.div
             initial="hidden"
@@ -211,7 +263,7 @@ const Index = () => {
       </section>
 
       {/* Contact */}
-      <section className="py-20 bg-card/30" id="contact">
+      <section className="py-20 bg-card/30 relative z-10" id="contact">
         <div className="container mx-auto px-6">
           <motion.div
             initial="hidden"
@@ -236,7 +288,7 @@ const Index = () => {
                 viewport={{ once: true }}
                 variants={fadeUp}
                 custom={i}
-                className="bg-gradient-card rounded-xl p-6 border border-border text-center"
+                className="bg-gradient-card rounded-xl p-6 border border-border text-center hover:border-primary/30 hover:scale-[1.02] transition-all duration-300"
               >
                 <c.icon className="h-6 w-6 text-primary mx-auto mb-3" />
                 <p className="text-sm font-semibold text-foreground">{c.label}</p>

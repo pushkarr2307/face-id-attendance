@@ -12,6 +12,8 @@ export interface AttendanceRecord {
   studentName: string;
   date: string;
   time: string;
+  status: "Verified" | "Not Verified";
+  verification: string;
 }
 
 const STUDENTS_KEY = "faceid_students";
@@ -43,6 +45,11 @@ export function getAttendance(): AttendanceRecord[] {
 export function addAttendance(record: Omit<AttendanceRecord, "id">) {
   const records = getAttendance();
   records.push({ ...record, id: crypto.randomUUID() });
+  localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(records));
+}
+
+export function deleteAttendance(id: string) {
+  const records = getAttendance().filter(r => r.id !== id);
   localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(records));
 }
 
