@@ -30,6 +30,11 @@ const FaceScan = () => {
     }
   }, []);
 
+  // Auto-start camera on mount
+  useEffect(() => {
+    startCamera();
+  }, [startCamera]);
+
   const stopCamera = useCallback(() => {
     stream?.getTracks().forEach((t) => t.stop());
     setStream(null);
