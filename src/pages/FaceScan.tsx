@@ -1,13 +1,13 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, ScanFace, CheckCircle, XCircle, RotateCcw } from "lucide-react";
+import { Camera, ScanFace, CheckCircle, XCircle, RotateCcw, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ParticleBackground from "@/components/ParticleBackground";
-import { getStudents, addAttendance } from "@/lib/attendanceStore";
+import { addAttendance, verifyFace } from "@/lib/attendanceStore";
 
-type ScanState = "idle" | "scanning" | "processing" | "success" | "failed";
+type ScanState = "idle" | "scanning" | "processing" | "success" | "failed" | "not_registered";
 
 const FaceScan = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -15,8 +15,8 @@ const FaceScan = () => {
   const [scanState, setScanState] = useState<ScanState>("idle");
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [resultMessage, setResultMessage] = useState("");
 
-  // Attach stream to video element whenever either changes
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
@@ -37,7 +37,6 @@ const FaceScan = () => {
     }
   }, []);
 
-  // Auto-start camera on mount
   useEffect(() => {
     startCamera();
   }, [startCamera]);
@@ -53,7 +52,7 @@ const FaceScan = () => {
     };
   }, [stream]);
 
-  const captureAndVerify = useCallback(() => {
+  const captureAndVerify = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current) return;
 
     const canvas = canvasRef.current;
@@ -66,41 +65,42 @@ const FaceScan = () => {
 
     setScanState("processing");
 
-    setTimeout(() => {
-      const students = getStudents();
-      const verified = Math.random() > 0.3;
+    // Convert canvas to base64
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+    const base64 = dataUrl.split(",")[1];
 
-      if (verified && students.length > 0) {
-        const matched = students[Math.floor(Math.random() * students.length)];
+    try {
+      const result = await verifyFace(base64);
+
+      if (result.matched && result.studentId && result.studentName) {
         const now = new Date();
-        addAttendance({
-          studentId: matched.id,
-          studentName: matched.name,
+        await addAttendance({
+          studentId: result.studentId,
+          studentName: result.studentName,
           date: now.toLocaleDateString(),
           time: now.toLocaleTimeString(),
           status: "Verified",
-          verification: "Face Match — AI Confidence 97.3%",
+          verification: `Face Match — AI Confidence ${((result.confidence || 0.95) * 100).toFixed(1)}%`,
         });
+        setResultMessage("Attendance Marked Successfully");
         setScanState("success");
       } else {
-        const now = new Date();
-        addAttendance({
-          studentId: "unknown",
-          studentName: "Unknown",
-          date: now.toLocaleDateString(),
-          time: now.toLocaleTimeString(),
-          status: "Not Verified",
-          verification: "No match found",
-        });
-        setScanState("failed");
+        setResultMessage(result.message || "Face Not Registered");
+        setScanState("not_registered");
       }
-      stopCamera();
-    }, 2500);
+    } catch (err) {
+      console.error("Verification error:", err);
+      setResultMessage("Verification failed. Please try again.");
+      setScanState("failed");
+    }
+
+    stopCamera();
   }, [stopCamera]);
 
   const reset = () => {
     setScanState("idle");
     setCameraError(null);
+    setResultMessage("");
     setTimeout(() => {
       startCamera();
     }, 300);
@@ -172,7 +172,7 @@ const FaceScan = () => {
                       <div className="absolute inset-0 bg-background/30 flex items-center justify-center">
                         <div className="glass rounded-xl p-4 flex items-center gap-3">
                           <ScanFace className="h-6 w-6 text-primary animate-pulse" />
-                          <span className="text-sm font-medium text-foreground">Verifying face...</span>
+                          <span className="text-sm font-medium text-foreground">Verifying face against registered students...</span>
                         </div>
                       </div>
                     )}
@@ -191,10 +191,29 @@ const FaceScan = () => {
                         <CheckCircle className="h-12 w-12 text-success" />
                       </div>
                       <h3 className="font-display text-xl font-bold text-foreground mb-2">
-                        Attendance Marked Successfully
+                        {resultMessage}
                       </h3>
                       <p className="text-sm text-muted-foreground">
                         Face verified • {new Date().toLocaleTimeString()}
+                      </p>
+                    </motion.div>
+                  )}
+
+                  {scanState === "not_registered" && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="text-center p-8"
+                    >
+                      <div className="rounded-full bg-warning/10 p-6 w-24 h-24 flex items-center justify-center mx-auto mb-4">
+                        <AlertTriangle className="h-12 w-12 text-warning" />
+                      </div>
+                      <h3 className="font-display text-xl font-bold text-foreground mb-2">
+                        Face Not Registered
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {resultMessage}
                       </p>
                     </motion.div>
                   )}
@@ -210,10 +229,10 @@ const FaceScan = () => {
                         <XCircle className="h-12 w-12 text-destructive" />
                       </div>
                       <h3 className="font-display text-xl font-bold text-foreground mb-2">
-                        Face Not Recognized
+                        Verification Failed
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        The captured face does not match any registered student.
+                        {resultMessage}
                       </p>
                     </motion.div>
                   )}
@@ -244,7 +263,7 @@ const FaceScan = () => {
                     Capture & Verify
                   </Button>
                 )}
-                {(scanState === "success" || scanState === "failed") && (
+                {(scanState === "success" || scanState === "failed" || scanState === "not_registered") && (
                   <Button
                     onClick={reset}
                     variant="outline"
