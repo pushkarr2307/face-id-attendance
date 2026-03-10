@@ -14,19 +14,26 @@ const FaceScan = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [scanState, setScanState] = useState<ScanState>("idle");
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
+  // Attach stream to video element whenever either changes
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream, scanState]);
 
   const startCamera = useCallback(async () => {
+    setCameraError(null);
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: 640, height: 480 },
       });
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
       setStream(mediaStream);
       setScanState("scanning");
     } catch {
-      alert("Camera access denied. Please allow camera permissions.");
+      setCameraError("Camera access is required for face scanning.");
+      setScanState("idle");
     }
   }, []);
 
@@ -59,7 +66,6 @@ const FaceScan = () => {
 
     setScanState("processing");
 
-    // Simulate AI face verification with delay
     setTimeout(() => {
       const students = getStudents();
       const verified = Math.random() > 0.3;
@@ -94,7 +100,7 @@ const FaceScan = () => {
 
   const reset = () => {
     setScanState("idle");
-    // Re-start camera after a brief delay so the idle UI flashes then camera opens
+    setCameraError(null);
     setTimeout(() => {
       startCamera();
     }, 300);
@@ -133,7 +139,11 @@ const FaceScan = () => {
                     <div className="rounded-full bg-primary/10 p-6 w-24 h-24 flex items-center justify-center mx-auto mb-4">
                       <Camera className="h-10 w-10 text-primary" />
                     </div>
-                    <p className="text-muted-foreground text-sm">Click below to start your camera</p>
+                    {cameraError ? (
+                      <p className="text-destructive text-sm font-medium">{cameraError}</p>
+                    ) : (
+                      <p className="text-muted-foreground text-sm">Starting camera...</p>
+                    )}
                   </div>
                 )}
 
