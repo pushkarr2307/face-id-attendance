@@ -94,6 +94,10 @@ const FaceScan = () => {
 
   const reset = () => {
     setScanState("idle");
+    // Re-start camera after a brief delay so the idle UI flashes then camera opens
+    setTimeout(() => {
+      startCamera();
+    }, 300);
   };
 
   return (
