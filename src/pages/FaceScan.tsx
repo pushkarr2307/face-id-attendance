@@ -139,7 +139,11 @@ const FaceScan = () => {
                     <div className="rounded-full bg-primary/10 p-6 w-24 h-24 flex items-center justify-center mx-auto mb-4">
                       <Camera className="h-10 w-10 text-primary" />
                     </div>
-                    <p className="text-muted-foreground text-sm">Click below to start your camera</p>
+                    {cameraError ? (
+                      <p className="text-destructive text-sm font-medium">{cameraError}</p>
+                    ) : (
+                      <p className="text-muted-foreground text-sm">Starting camera...</p>
+                    )}
                   </div>
                 )}
 
