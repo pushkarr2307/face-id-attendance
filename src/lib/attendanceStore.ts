@@ -121,8 +121,9 @@ export async function getAttendance(): Promise<AttendanceRecord[]> {
     studentName: a.student_name,
     date: a.date,
     time: a.time,
-    status: a.status as "Verified" | "Not Verified",
+    status: a.status as "Verified" | "Rejected",
     verification: a.verification || "",
+    confidence: a.confidence,
   }));
 }
 
