@@ -1,0 +1,1 @@
+ALTER TABLE public.attendance_records ADD COLUMN confidence real DEFAULT NULL;

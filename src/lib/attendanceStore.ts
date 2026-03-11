@@ -13,8 +13,9 @@ export interface AttendanceRecord {
   studentName: string;
   date: string;
   time: string;
-  status: "Verified" | "Not Verified";
+  status: "Verified" | "Rejected";
   verification: string;
+  confidence: number | null;
 }
 
 // ---- Students ----
@@ -120,8 +121,9 @@ export async function getAttendance(): Promise<AttendanceRecord[]> {
     studentName: a.student_name,
     date: a.date,
     time: a.time,
-    status: a.status as "Verified" | "Not Verified",
+    status: a.status as "Verified" | "Rejected",
     verification: a.verification || "",
+    confidence: a.confidence,
   }));
 }
 
@@ -133,6 +135,7 @@ export async function addAttendance(record: Omit<AttendanceRecord, "id">): Promi
     time: record.time,
     status: record.status,
     verification: record.verification,
+    confidence: record.confidence,
   });
 
   if (error) {
