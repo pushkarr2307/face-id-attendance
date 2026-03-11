@@ -39,6 +39,7 @@ const AdminDashboard = () => {
   // Filters
   const [dateFilter, setDateFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "Verified" | "Rejected">("all");
 
   // Camera refs for face capture
   const captureVideoRef = useRef<HTMLVideoElement>(null);
