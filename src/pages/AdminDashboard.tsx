@@ -68,8 +68,11 @@ const AdminDashboard = () => {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(a => a.studentName.toLowerCase().includes(q));
     }
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(a => a.status === statusFilter);
+    }
     return filtered;
-  }, [attendance, dateFilter, searchQuery]);
+  }, [attendance, dateFilter, searchQuery, statusFilter]);
 
   const handleLogin = () => {
     if (username === "admin" && password === "admin123") {
