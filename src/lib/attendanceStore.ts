@@ -13,8 +13,9 @@ export interface AttendanceRecord {
   studentName: string;
   date: string;
   time: string;
-  status: "Verified" | "Not Verified";
+  status: "Verified" | "Rejected";
   verification: string;
+  confidence: number | null;
 }
 
 // ---- Students ----
