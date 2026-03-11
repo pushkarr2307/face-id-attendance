@@ -175,18 +175,4 @@ export async function verifyFace(capturedImageBase64: string): Promise<{
   return data;
 }
 
-// ---- Admin (kept local for simplicity) ----
-
-const ADMIN_KEY = "faceid_admin";
-
-export function isAdminLoggedIn(): boolean {
-  return localStorage.getItem(ADMIN_KEY) === "true";
-}
-
-export function loginAdmin() {
-  localStorage.setItem(ADMIN_KEY, "true");
-}
-
-export function logoutAdmin() {
-  localStorage.removeItem(ADMIN_KEY);
-}
+// Admin auth is now handled via Supabase Auth in AdminDashboard.tsx
