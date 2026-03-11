@@ -72,19 +72,32 @@ const FaceScan = () => {
     try {
       const result = await verifyFace(base64);
 
+      const now = new Date();
+      const confidence = result.confidence || 0;
+
       if (result.matched && result.studentId && result.studentName) {
-        const now = new Date();
         await addAttendance({
           studentId: result.studentId,
           studentName: result.studentName,
           date: now.toLocaleDateString(),
           time: now.toLocaleTimeString(),
           status: "Verified",
-          verification: `Face Match — AI Confidence ${((result.confidence || 0.95) * 100).toFixed(1)}%`,
+          verification: `Face Match — AI Confidence ${(confidence * 100).toFixed(1)}%`,
+          confidence: Math.round(confidence * 100),
         });
         setResultMessage("Attendance Marked Successfully");
         setScanState("success");
       } else {
+        // Log rejected scan
+        await addAttendance({
+          studentId: "unknown",
+          studentName: "Unknown Face",
+          date: now.toLocaleDateString(),
+          time: now.toLocaleTimeString(),
+          status: "Rejected",
+          verification: result.message || "Face Not Registered",
+          confidence: Math.round(confidence * 100),
+        });
         setResultMessage(result.message || "Face Not Registered");
         setScanState("not_registered");
       }

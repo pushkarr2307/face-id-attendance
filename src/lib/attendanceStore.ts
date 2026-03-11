@@ -135,6 +135,7 @@ export async function addAttendance(record: Omit<AttendanceRecord, "id">): Promi
     time: record.time,
     status: record.status,
     verification: record.verification,
+    confidence: record.confidence,
   });
 
   if (error) {

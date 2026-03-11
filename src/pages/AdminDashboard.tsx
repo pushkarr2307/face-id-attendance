@@ -442,6 +442,7 @@ const AdminDashboard = () => {
           {/* Attendance Tab */}
           {tab === "attendance" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              {/* Filters */}
               <div className="flex flex-wrap gap-3 mb-4">
                 <div className="relative flex-1 min-w-[200px]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -451,11 +452,38 @@ const AdminDashboard = () => {
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="bg-secondary border-border text-foreground pl-9 w-[200px]" />
                 </div>
-                {(dateFilter || searchQuery) && (
-                  <Button variant="outline" onClick={() => { setDateFilter(""); setSearchQuery(""); }} className="border-border text-foreground hover:bg-secondary">
+                <div className="flex gap-1 rounded-lg border border-border p-0.5 bg-secondary">
+                  {(["all", "Verified", "Rejected"] as const).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setStatusFilter(s)}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${statusFilter === s ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                    >
+                      {s === "all" ? "All" : s}
+                    </button>
+                  ))}
+                </div>
+                {(dateFilter || searchQuery || statusFilter !== "all") && (
+                  <Button variant="outline" onClick={() => { setDateFilter(""); setSearchQuery(""); setStatusFilter("all"); }} className="border-border text-foreground hover:bg-secondary">
                     <X className="h-4 w-4 mr-1" /> Clear
                   </Button>
                 )}
+              </div>
+
+              {/* Summary row */}
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="bg-gradient-card rounded-xl border border-border p-3 text-center">
+                  <p className="text-xs text-muted-foreground">Total Logs</p>
+                  <p className="font-display text-lg font-bold text-foreground">{filteredAttendance.length}</p>
+                </div>
+                <div className="bg-gradient-card rounded-xl border border-border p-3 text-center">
+                  <p className="text-xs text-muted-foreground">Verified</p>
+                  <p className="font-display text-lg font-bold text-success">{filteredAttendance.filter(a => a.status === "Verified").length}</p>
+                </div>
+                <div className="bg-gradient-card rounded-xl border border-border p-3 text-center">
+                  <p className="text-xs text-muted-foreground">Rejected</p>
+                  <p className="font-display text-lg font-bold text-destructive">{filteredAttendance.filter(a => a.status === "Rejected").length}</p>
+                </div>
               </div>
 
               <div className="bg-gradient-card rounded-xl border border-border overflow-hidden">
@@ -466,7 +494,7 @@ const AdminDashboard = () => {
                       <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Date</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Time</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Verification</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Confidence</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Actions</th>
                     </tr>
                   </thead>
@@ -482,7 +510,17 @@ const AdminDashboard = () => {
                             {a.status}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">{a.verification || "Face Match"}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 h-1.5 rounded-full bg-secondary overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${(a.confidence || 0) >= 70 ? "bg-success" : (a.confidence || 0) >= 40 ? "bg-warning" : "bg-destructive"}`}
+                                style={{ width: `${a.confidence || 0}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-medium text-foreground">{a.confidence != null ? `${a.confidence}%` : "—"}</span>
+                          </div>
+                        </td>
                         <td className="px-4 py-3 text-right">
                           <Button size="sm" variant="outline" onClick={() => handleDeleteAttendance(a.id)} className="border-destructive text-destructive h-8">
                             <Trash2 className="h-3 w-3" />
@@ -493,7 +531,7 @@ const AdminDashboard = () => {
                     {filteredAttendance.length === 0 && (
                       <tr>
                         <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                          {dateFilter || searchQuery ? "No records match your filters." : "No attendance records yet."}
+                          {dateFilter || searchQuery || statusFilter !== "all" ? "No records match your filters." : "No attendance records yet."}
                         </td>
                       </tr>
                     )}
