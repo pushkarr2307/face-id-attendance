@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   LogIn, LogOut, Users, ClipboardList, Plus, Trash2, Edit2, X, Camera,
-  CheckCircle, XCircle, Calendar, Search, Upload, Image
+  CheckCircle, XCircle, Calendar, Search, Upload, Image, UserPlus, Mail, Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,14 +12,16 @@ import ParticleBackground from "@/components/ParticleBackground";
 import {
   getStudents, addStudent, updateStudent, deleteStudent, uploadFaceImage,
   getAttendance, deleteAttendance,
-  isAdminLoggedIn, loginAdmin, logoutAdmin,
   Student, AttendanceRecord
 } from "@/lib/attendanceStore";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 const AdminDashboard = () => {
-  const [loggedIn, setLoggedIn] = useState(isAdminLoggedIn());
-  const [username, setUsername] = useState("");
+  const [session, setSession] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [tab, setTab] = useState<"students" | "attendance">("students");
@@ -46,6 +48,23 @@ const AdminDashboard = () => {
   const captureCanvasRef = useRef<HTMLCanvasElement>(null);
   const [captureStream, setCaptureStream] = useState<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Auth listener
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const loggedIn = !!session;
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -74,19 +93,30 @@ const AdminDashboard = () => {
     return filtered;
   }, [attendance, dateFilter, searchQuery, statusFilter]);
 
-  const handleLogin = () => {
-    if (username === "admin" && password === "admin123") {
-      loginAdmin();
-      setLoggedIn(true);
-      setLoginError("");
+  const handleAuth = async () => {
+    setLoginError("");
+    if (!email || !password) {
+      setLoginError("Please enter email and password.");
+      return;
+    }
+
+    if (authMode === "signup") {
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        setLoginError(error.message);
+      } else {
+        toast({ title: "Account Created", description: "You are now signed in." });
+      }
     } else {
-      setLoginError("Invalid credentials. Use admin / admin123");
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setLoginError(error.message);
+      }
     }
   };
 
-  const handleLogout = () => {
-    logoutAdmin();
-    setLoggedIn(false);
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
   };
 
   // --- Face capture ---
@@ -162,16 +192,13 @@ const AdminDashboard = () => {
 
   const handleAddStudent = async () => {
     if (!formName || !formRoll) return;
-
     setLoading(true);
     let imageUrl = "";
-
     if (faceImageBlob) {
       const tempId = crypto.randomUUID();
       const url = await uploadFaceImage(faceImageBlob, tempId);
       if (url) imageUrl = url;
     }
-
     const result = await addStudent({ name: formName, rollNo: formRoll, imageUrl });
     if (result) {
       toast({ title: "Student Added", description: `${formName} has been registered` });
@@ -185,21 +212,17 @@ const AdminDashboard = () => {
 
   const handleEditStudent = async (id: string) => {
     if (!formName || !formRoll) return;
-
     setLoading(true);
     let imageUrl: string | undefined;
-
     if (faceImageBlob) {
       const url = await uploadFaceImage(faceImageBlob, id);
       if (url) imageUrl = url;
     }
-
     const success = await updateStudent(id, {
       name: formName,
       rollNo: formRoll,
       ...(imageUrl !== undefined && { imageUrl }),
     });
-
     if (success) {
       toast({ title: "Student Updated", description: `${formName} has been updated` });
       await loadData();
@@ -232,6 +255,14 @@ const AdminDashboard = () => {
     setFaceImageBlob(null);
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground animate-pulse">Loading...</div>
+      </div>
+    );
+  }
+
   if (!loggedIn) {
     return (
       <div className="min-h-screen bg-background">
@@ -247,14 +278,49 @@ const AdminDashboard = () => {
               <div className="rounded-full bg-primary/10 p-4 w-16 h-16 flex items-center justify-center mx-auto mb-4 glow-primary">
                 <LogIn className="h-7 w-7 text-primary" />
               </div>
-              <h2 className="font-display text-2xl font-bold text-foreground">Admin Login</h2>
-              <p className="text-sm text-muted-foreground mt-1">Access the attendance dashboard</p>
+              <h2 className="font-display text-2xl font-bold text-foreground">
+                {authMode === "login" ? "Admin Login" : "Create Account"}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {authMode === "login" ? "Sign in to access the dashboard" : "Register a new admin account"}
+              </p>
             </div>
             <div className="space-y-4">
-              <Input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} className="bg-secondary border-border text-foreground" />
-              <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleLogin()} className="bg-secondary border-border text-foreground" />
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="email"
+                  placeholder="Email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="bg-secondary border-border text-foreground pl-9"
+                />
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAuth()}
+                  className="bg-secondary border-border text-foreground pl-9"
+                />
+              </div>
               {loginError && <p className="text-sm text-destructive">{loginError}</p>}
-              <Button onClick={handleLogin} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-display font-semibold">Sign In</Button>
+              <Button onClick={handleAuth} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-display font-semibold gap-2">
+                {authMode === "login" ? (
+                  <><LogIn className="h-4 w-4" /> Sign In</>
+                ) : (
+                  <><UserPlus className="h-4 w-4" /> Create Account</>
+                )}
+              </Button>
+              <button
+                onClick={() => { setAuthMode(authMode === "login" ? "signup" : "login"); setLoginError(""); }}
+                className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors text-center"
+              >
+                {authMode === "login" ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+              </button>
             </div>
           </motion.div>
         </div>
@@ -276,7 +342,9 @@ const AdminDashboard = () => {
               <h1 className="font-display text-3xl font-bold text-foreground">
                 Admin <span className="text-gradient">Dashboard</span>
               </h1>
-              <p className="text-sm text-muted-foreground mt-1">Manage students and attendance records</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Signed in as {session?.user?.email}
+              </p>
             </div>
             <Button onClick={handleLogout} variant="outline" className="border-border text-foreground hover:bg-secondary gap-2">
               <LogOut className="h-4 w-4" /> Logout
@@ -312,7 +380,7 @@ const AdminDashboard = () => {
           {tab === "students" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="flex justify-end mb-4">
-                <Button onClick={() => { setShowAdd(true); resetForm(); setShowAdd(true); }} className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
+                <Button onClick={() => { resetForm(); setShowAdd(true); }} className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
                   <Plus className="h-4 w-4" /> Add Student
                 </Button>
               </div>
@@ -328,7 +396,6 @@ const AdminDashboard = () => {
                   {/* Face Image Section */}
                   <div className="space-y-3">
                     <p className="text-sm font-medium text-foreground">Face Image</p>
-
                     {faceImagePreview && (
                       <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-border">
                         <img src={faceImagePreview} alt="Face preview" className="w-full h-full object-cover" />
@@ -337,7 +404,6 @@ const AdminDashboard = () => {
                         </button>
                       </div>
                     )}
-
                     {showCapture && (
                       <div className="space-y-2">
                         <div className="relative w-64 h-48 rounded-xl overflow-hidden border border-border bg-background/50">
@@ -354,7 +420,6 @@ const AdminDashboard = () => {
                         <canvas ref={captureCanvasRef} className="hidden" />
                       </div>
                     )}
-
                     {!showCapture && !faceImagePreview && (
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" onClick={startCapture} className="border-border text-foreground gap-1">
@@ -366,7 +431,6 @@ const AdminDashboard = () => {
                         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
                       </div>
                     )}
-
                     {!showCapture && faceImagePreview && (
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" onClick={startCapture} className="border-border text-foreground gap-1">
