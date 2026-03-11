@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       attendance_records: {
         Row: {
+          confidence: number | null
           created_at: string
           date: string
           id: string
@@ -26,6 +27,7 @@ export type Database = {
           verification: string | null
         }
         Insert: {
+          confidence?: number | null
           created_at?: string
           date: string
           id?: string
@@ -36,6 +38,7 @@ export type Database = {
           verification?: string | null
         }
         Update: {
+          confidence?: number | null
           created_at?: string
           date?: string
           id?: string
