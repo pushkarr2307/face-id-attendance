@@ -14,7 +14,7 @@ import {
   getAttendance, deleteAttendance,
   Student, AttendanceRecord
 } from "@/lib/attendanceStore";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, getSupabaseDiagnostics } from "@/lib/supabaseClient";
 import { toast } from "@/hooks/use-toast";
 
 const AdminDashboard = () => {
