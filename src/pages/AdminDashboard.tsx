@@ -14,8 +14,16 @@ import {
   getAttendance, deleteAttendance,
   Student, AttendanceRecord
 } from "@/lib/attendanceStore";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, getSupabaseDiagnostics } from "@/lib/supabaseClient";
 import { toast } from "@/hooks/use-toast";
+
+const formatAuthError = (error: unknown) => {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "object" && error && "message" in error) {
+    return String((error as { message?: unknown }).message ?? "Authentication request failed");
+  }
+  return "Authentication request failed";
+};
 
 const AdminDashboard = () => {
   const [session, setSession] = useState<any>(null);
@@ -51,17 +59,50 @@ const AdminDashboard = () => {
 
   // Auth listener
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    let mounted = true;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (!mounted) return;
+      setSession(nextSession);
       setAuthLoading(false);
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setAuthLoading(false);
-    });
+    const initializeSession = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
 
-    return () => subscription.unsubscribe();
+        if (error) {
+          console.error("[Admin Auth] Session initialization error", {
+            error,
+            diagnostics: getSupabaseDiagnostics(),
+          });
+          if (mounted) setLoginError(error.message);
+        }
+
+        if (mounted) {
+          setSession(data.session);
+          setAuthLoading(false);
+        }
+      } catch (error) {
+        const message = formatAuthError(error);
+        console.error("[Admin Auth] Session initialization exception", {
+          error,
+          diagnostics: getSupabaseDiagnostics(),
+        });
+
+        if (mounted) {
+          setLoginError(message);
+          setAuthLoading(false);
+        }
+      }
+    };
+
+    initializeSession();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const loggedIn = !!session;
@@ -94,33 +135,76 @@ const AdminDashboard = () => {
   }, [attendance, dateFilter, searchQuery, statusFilter]);
 
   const [authSubmitting, setAuthSubmitting] = useState(false);
+  const authDiagnostics = useMemo(() => getSupabaseDiagnostics(), []);
 
   const handleAuth = async () => {
     setLoginError("");
+
     if (!email || !password) {
       setLoginError("Please enter email and password.");
       return;
     }
+
     if (authSubmitting) return;
     setAuthSubmitting(true);
 
     try {
       if (authMode === "signup") {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: window.location.origin,
+          },
+        });
+
         if (error) {
+          console.error("[Admin Auth] signUp error", { error, diagnostics: authDiagnostics });
           setLoginError(error.message);
-        } else {
+          return;
+        }
+
+        if (data.session) {
           toast({ title: "Account Created", description: "You are now signed in." });
+        } else {
+          toast({
+            title: "Confirm your email",
+            description: "Account created. Verify your email, then sign in.",
+          });
+          setAuthMode("login");
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
-          setLoginError(error.message);
+          const readableMessage =
+            error.message === "Invalid login credentials"
+              ? "Invalid login credentials. If you just signed up, confirm your email first."
+              : error.message;
+
+          console.error("[Admin Auth] signInWithPassword error", {
+            error,
+            readableMessage,
+            diagnostics: authDiagnostics,
+          });
+
+          setLoginError(readableMessage);
+          return;
         }
       }
-    } catch (err: any) {
-      console.error("Auth error:", err);
-      setLoginError("Network error. Please check your connection and try again.");
+    } catch (error) {
+      const message = formatAuthError(error);
+      console.error("[Admin Auth] Authentication request exception", {
+        error,
+        diagnostics: authDiagnostics,
+      });
+
+      if (message.toLowerCase().includes("failed to fetch")) {
+        setLoginError(
+          `Unable to reach authentication service (${authDiagnostics.supabaseHost}). Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.`
+        );
+      } else {
+        setLoginError(message);
+      }
     } finally {
       setAuthSubmitting(false);
     }
