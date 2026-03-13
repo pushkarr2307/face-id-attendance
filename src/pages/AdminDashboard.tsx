@@ -135,13 +135,16 @@ const AdminDashboard = () => {
   }, [attendance, dateFilter, searchQuery, statusFilter]);
 
   const [authSubmitting, setAuthSubmitting] = useState(false);
+  const authDiagnostics = useMemo(() => getSupabaseDiagnostics(), []);
 
   const handleAuth = async () => {
     setLoginError("");
+
     if (!email || !password) {
       setLoginError("Please enter email and password.");
       return;
     }
+
     if (authSubmitting) return;
     setAuthSubmitting(true);
 
@@ -149,19 +152,34 @@ const AdminDashboard = () => {
       if (authMode === "signup") {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) {
+          console.error("[Admin Auth] signUp error", { error, diagnostics: authDiagnostics });
           setLoginError(error.message);
-        } else {
-          toast({ title: "Account Created", description: "You are now signed in." });
+          return;
         }
+
+        toast({ title: "Account Created", description: "You are now signed in." });
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
+          console.error("[Admin Auth] signInWithPassword error", { error, diagnostics: authDiagnostics });
           setLoginError(error.message);
+          return;
         }
       }
-    } catch (err: any) {
-      console.error("Auth error:", err);
-      setLoginError("Network error. Please check your connection and try again.");
+    } catch (error) {
+      const message = formatAuthError(error);
+      console.error("[Admin Auth] Authentication request exception", {
+        error,
+        diagnostics: authDiagnostics,
+      });
+
+      if (message.toLowerCase().includes("failed to fetch")) {
+        setLoginError(
+          `Unable to reach authentication service (${authDiagnostics.supabaseHost}). Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.`
+        );
+      } else {
+        setLoginError(message);
+      }
     } finally {
       setAuthSubmitting(false);
     }
