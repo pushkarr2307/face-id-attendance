@@ -93,25 +93,36 @@ const AdminDashboard = () => {
     return filtered;
   }, [attendance, dateFilter, searchQuery, statusFilter]);
 
+  const [authSubmitting, setAuthSubmitting] = useState(false);
+
   const handleAuth = async () => {
     setLoginError("");
     if (!email || !password) {
       setLoginError("Please enter email and password.");
       return;
     }
+    if (authSubmitting) return;
+    setAuthSubmitting(true);
 
-    if (authMode === "signup") {
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) {
-        setLoginError(error.message);
+    try {
+      if (authMode === "signup") {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) {
+          setLoginError(error.message);
+        } else {
+          toast({ title: "Account Created", description: "You are now signed in." });
+        }
       } else {
-        toast({ title: "Account Created", description: "You are now signed in." });
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          setLoginError(error.message);
+        }
       }
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        setLoginError(error.message);
-      }
+    } catch (err: any) {
+      console.error("Auth error:", err);
+      setLoginError("Network error. Please check your connection and try again.");
+    } finally {
+      setAuthSubmitting(false);
     }
   };
 
