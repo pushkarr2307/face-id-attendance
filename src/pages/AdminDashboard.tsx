@@ -17,6 +17,14 @@ import {
 import { supabase, getSupabaseDiagnostics } from "@/lib/supabaseClient";
 import { toast } from "@/hooks/use-toast";
 
+const formatAuthError = (error: unknown) => {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "object" && error && "message" in error) {
+    return String((error as { message?: unknown }).message ?? "Authentication request failed");
+  }
+  return "Authentication request failed";
+};
+
 const AdminDashboard = () => {
   const [session, setSession] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
