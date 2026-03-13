@@ -319,8 +319,8 @@ const AdminDashboard = () => {
                 />
               </div>
               {loginError && <p className="text-sm text-destructive">{loginError}</p>}
-              <Button onClick={handleAuth} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-display font-semibold gap-2">
-                {authMode === "login" ? (
+              <Button onClick={handleAuth} disabled={authSubmitting} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-display font-semibold gap-2">
+                {authSubmitting ? "Please wait..." : authMode === "login" ? (
                   <><LogIn className="h-4 w-4" /> Sign In</>
                 ) : (
                   <><UserPlus className="h-4 w-4" /> Create Account</>
