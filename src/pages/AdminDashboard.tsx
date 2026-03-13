@@ -59,17 +59,50 @@ const AdminDashboard = () => {
 
   // Auth listener
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    let mounted = true;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (!mounted) return;
+      setSession(nextSession);
       setAuthLoading(false);
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setAuthLoading(false);
-    });
+    const initializeSession = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
 
-    return () => subscription.unsubscribe();
+        if (error) {
+          console.error("[Admin Auth] Session initialization error", {
+            error,
+            diagnostics: getSupabaseDiagnostics(),
+          });
+          if (mounted) setLoginError(error.message);
+        }
+
+        if (mounted) {
+          setSession(data.session);
+          setAuthLoading(false);
+        }
+      } catch (error) {
+        const message = formatAuthError(error);
+        console.error("[Admin Auth] Session initialization exception", {
+          error,
+          diagnostics: getSupabaseDiagnostics(),
+        });
+
+        if (mounted) {
+          setLoginError(message);
+          setAuthLoading(false);
+        }
+      }
+    };
+
+    initializeSession();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const loggedIn = !!session;
