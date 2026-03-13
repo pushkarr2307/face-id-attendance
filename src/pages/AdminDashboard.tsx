@@ -150,19 +150,44 @@ const AdminDashboard = () => {
 
     try {
       if (authMode === "signup") {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: window.location.origin,
+          },
+        });
+
         if (error) {
           console.error("[Admin Auth] signUp error", { error, diagnostics: authDiagnostics });
           setLoginError(error.message);
           return;
         }
 
-        toast({ title: "Account Created", description: "You are now signed in." });
+        if (data.session) {
+          toast({ title: "Account Created", description: "You are now signed in." });
+        } else {
+          toast({
+            title: "Confirm your email",
+            description: "Account created. Verify your email, then sign in.",
+          });
+          setAuthMode("login");
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
-          console.error("[Admin Auth] signInWithPassword error", { error, diagnostics: authDiagnostics });
-          setLoginError(error.message);
+          const readableMessage =
+            error.message === "Invalid login credentials"
+              ? "Invalid login credentials. If you just signed up, confirm your email first."
+              : error.message;
+
+          console.error("[Admin Auth] signInWithPassword error", {
+            error,
+            readableMessage,
+            diagnostics: authDiagnostics,
+          });
+
+          setLoginError(readableMessage);
           return;
         }
       }
