@@ -46,8 +46,8 @@ const envUrlMatchesProject = !!envUrl && (!!projectId ? envUrl.includes(`${proje
 const envKeyProjectRef = decodeProjectRefFromKey(envKey);
 const envKeyMatchesProject = !!envKey && (!!projectId ? envKeyProjectRef === projectId : true);
 
-const supabaseUrl = envUrlMatchesProject ? envUrl : expectedUrl;
-const supabaseAnonKey = envKeyMatchesProject ? envKey : FALLBACK_SUPABASE_ANON_KEY;
+const supabaseUrl = (envUrlMatchesProject ? envUrl : expectedUrl) ?? expectedUrl;
+const supabaseAnonKey = (envKeyMatchesProject ? envKey : FALLBACK_SUPABASE_ANON_KEY) ?? FALLBACK_SUPABASE_ANON_KEY;
 
 export const getSupabaseDiagnostics = () => ({
   projectId,
